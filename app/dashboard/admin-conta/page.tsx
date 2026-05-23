@@ -3,6 +3,87 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
+function FirmeAlocate({ contabilId, firmeDisponibile, adminContaId }: any) {
+  const [alocare, setAlocare] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [firmaDeAdaugat, setFirmaDeAdaugat] = useState('')
+
+  useEffect(() => {
+    incarcaAlocare()
+  }, [contabilId])
+
+  async function incarcaAlocare() {
+    const { data } = await supabase
+      .from('alocare_contabili')
+      .select('*, firme_cliente(*)')
+      .eq('contabil_id', contabilId)
+      .eq('activ', true)
+    setAlocare(data || [])
+    setLoading(false)
+  }
+
+  async function adaugaAlocare() {
+    if (!firmaDeAdaugat) return
+    await supabase.from('alocare_contabili').insert({
+      contabil_id: contabilId,
+      firma_client_id: firmaDeAdaugat,
+      admin_conta_id: adminContaId,
+      activ: true
+    })
+    setFirmaDeAdaugat('')
+    await incarcaAlocare()
+  }
+
+  async function eliminaAlocare(alocareId: string) {
+    if (!confirm('Elimini alocarea acestui contabil?')) return
+    await supabase
+      .from('alocare_contabili')
+      .update({ activ: false })
+      .eq('id', alocareId)
+    await incarcaAlocare()
+  }
+
+  const firmeNealocate = firmeDisponibile.filter(
+    (f: any) => !alocare.some((a: any) => a.firma_client_id === f.id)
+  )
+
+  if (loading) return <p className="text-xs text-gray-400">Se încarcă...</p>
+
+  return (
+    <div>
+      {alocare.length === 0 ? (
+        <p className="text-xs text-gray-400 mb-2">Nicio firmă alocată încă.</p>
+      ) : (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {alocare.map((a: any) => (
+            <div key={a.id} className="flex items-center gap-1 px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs">
+              <span>{a.firme_cliente?.nume}</span>
+              <button onClick={() => eliminaAlocare(a.id)}
+                className="ml-1 text-indigo-400 hover:text-red-500 font-bold">×</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {firmeNealocate.length > 0 && (
+        <div className="flex gap-2">
+          <select value={firmaDeAdaugat} onChange={e => setFirmaDeAdaugat(e.target.value)}
+            className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
+            <option value="">Alege firmă de alocat...</option>
+            {firmeNealocate.map((f: any) => (
+              <option key={f.id} value={f.id}>{f.nume}</option>
+            ))}
+          </select>
+          <button onClick={adaugaAlocare}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition">
+            Alocă
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function DashboardAdminConta() {
   const router = useRouter()
   const [profil, setProfil] = useState<any>(null)
@@ -14,7 +95,6 @@ export default function DashboardAdminConta() {
   const [mesaj, setMesaj] = useState('')
   const [loadingActiune, setLoadingActiune] = useState(false)
 
-  // Adauga firma conta
   const [showAdaugaFirmaConta, setShowAdaugaFirmaConta] = useState(false)
   const [numeFirmaConta, setNumeFirmaConta] = useState('')
   const [cuiFirmaConta, setCuiFirmaConta] = useState('')
@@ -23,7 +103,6 @@ export default function DashboardAdminConta() {
   const [documentCeccar, setDocumentCeccar] = useState<File | null>(null)
   const [esteClient, setEsteClient] = useState(false)
 
-  // Adauga firma client
   const [showAdaugaFirmaClient, setShowAdaugaFirmaClient] = useState(false)
   const [cuiCautare, setCuiCautare] = useState('')
   const [firmaGasita, setFirmaGasita] = useState<any>(null)
@@ -32,7 +111,6 @@ export default function DashboardAdminConta() {
   const [emailFirmaClient, setEmailFirmaClient] = useState('')
   const [telefonFirmaClient, setTelefonFirmaClient] = useState('')
 
-  // Adauga contabil
   const [showAdaugaContabil, setShowAdaugaContabil] = useState(false)
   const [numeContabil, setNumeContabil] = useState('')
   const [emailContabil, setEmailContabil] = useState('')
@@ -70,15 +148,19 @@ export default function DashboardAdminConta() {
       .eq('admin_conta_id', userId)
     setFirmeCliente(firmeC || [])
 
+    const { data: alocari } = await supabase
+      .from('alocare_contabili')
+      .select('contabil_id')
+      .eq('admin_conta_id', userId)
+      .eq('activ', true)
+
+    const contabiliIds = [...new Set(alocari?.map((a: any) => a.contabil_id) || [])]
+
     const { data: contabiliData } = await supabase
       .from('profiluri')
-      .select('*, utilizator_roluri(*)')
-      .eq('utilizator_roluri.rol', 'contabil')
-    
-    const contabiliFiltrati = contabiliData?.filter(u => 
-      u.utilizator_roluri?.some((r: any) => r.rol === 'contabil')
-    ) || []
-    setContabili(contabiliFiltrati)
+      .select('*')
+      .in('id', contabiliIds.length > 0 ? contabiliIds : ['00000000-0000-0000-0000-000000000000'])
+    setContabili(contabiliData || [])
   }
 
   async function adaugaFirmaConta() {
@@ -128,7 +210,6 @@ export default function DashboardAdminConta() {
       return
     }
 
-    // Daca firma e si client, cream si firma client
     if (esteClient && firma) {
       const { data: firmaClient } = await supabase
         .from('firme_cliente')
@@ -179,7 +260,7 @@ export default function DashboardAdminConta() {
       .select('*')
       .eq('cui', cuiCautare)
       .single()
-    
+
     if (data) {
       setFirmaGasita(data)
       setNumeFirmaClient(data.nume)
@@ -259,6 +340,8 @@ export default function DashboardAdminConta() {
       return
     }
 
+    const { data: { user } } = await supabase.auth.getUser()
+
     const { data, error } = await supabase.auth.signUp({
       email: emailContabil,
       password: parolaContabil,
@@ -281,6 +364,11 @@ export default function DashboardAdminConta() {
         utilizator_id: data.user.id,
         rol: 'contabil'
       })
+      await supabase.from('alocare_contabili').insert({
+        contabil_id: data.user.id,
+        admin_conta_id: user?.id,
+        activ: true
+      })
     }
 
     setMesaj('Contabil adăugat cu succes!')
@@ -288,7 +376,7 @@ export default function DashboardAdminConta() {
     setEmailContabil('')
     setParolaContabil('')
     setShowAdaugaContabil(false)
-    await incarcaDate(profil?.id)
+    await incarcaDate(user?.id!)
     setLoadingActiune(false)
   }
 
@@ -305,7 +393,6 @@ export default function DashboardAdminConta() {
 
   return (
     <main className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
           <div>
@@ -326,7 +413,6 @@ export default function DashboardAdminConta() {
           </div>
         )}
 
-        {/* Tabs */}
         <div className="flex gap-2 mb-6 flex-wrap">
           <button onClick={() => setTab('firme_conta')}
             className={`px-6 py-2 rounded-xl font-semibold text-sm transition ${tab === 'firme_conta' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-indigo-50'}`}>
@@ -399,7 +485,7 @@ export default function DashboardAdminConta() {
                         className="w-5 h-5 rounded accent-indigo-600" />
                       <div>
                         <p className="font-semibold text-gray-800 text-sm">Folosește și ca firmă client</p>
-                        <p className="text-xs text-gray-500">Firma ta de contabilitate va apărea și ca firmă client pentru gestionarea propriilor documente</p>
+                        <p className="text-xs text-gray-500">Firma ta va apărea și ca firmă client pentru gestionarea propriilor documente</p>
                       </div>
                     </label>
                   </div>
@@ -466,7 +552,6 @@ export default function DashboardAdminConta() {
               <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
                 <h3 className="font-bold text-gray-800 mb-4">Adaugă firmă client</h3>
                 <p className="text-sm text-gray-500 mb-4">Caută firma după CUI — dacă e înregistrată pe platformă o găsești automat.</p>
-
                 <div className="flex gap-3 mb-4">
                   <input value={cuiCautare} onChange={e => setCuiCautare(e.target.value)}
                     placeholder="Caută după CUI..."
@@ -605,14 +690,24 @@ export default function DashboardAdminConta() {
                 <p className="text-gray-500 mt-4">Nu ai adăugat niciun contabil.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 {contabili.map(contabil => (
-                  <div key={contabil.id} className="bg-white rounded-2xl shadow-sm p-6 flex justify-between items-center">
-                    <div>
-                      <h3 className="font-bold text-gray-800">{contabil.nume}</h3>
-                      <p className="text-sm text-gray-500">{contabil.email}</p>
+                  <div key={contabil.id} className="bg-white rounded-2xl shadow-sm p-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <div>
+                        <h3 className="font-bold text-gray-800">{contabil.nume}</h3>
+                        <p className="text-sm text-gray-500">{contabil.email}</p>
+                      </div>
+                      <span className="text-2xl">👤</span>
                     </div>
-                    <span className="text-2xl">👤</span>
+                    <div className="border-t border-gray-100 pt-4">
+                      <p className="text-xs font-bold text-gray-500 uppercase mb-2">Firme alocate</p>
+                      <FirmeAlocate
+                        contabilId={contabil.id}
+                        firmeDisponibile={firmeCliente}
+                        adminContaId={profil?.id}
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
