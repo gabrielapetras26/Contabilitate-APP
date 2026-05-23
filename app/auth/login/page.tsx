@@ -147,6 +147,13 @@ export default function Login() {
             Înregistrează-te
           </Link>
         </p>
+        
+<p className="text-center text-gray-500 text-sm mt-2">
+  Ai uitat parola?{' '}
+  <Link href="/auth/forgot-password" className="text-indigo-600 hover:underline font-semibold">
+    Resetează aici
+  </Link>
+</p>
 
       </div>
     </main>
