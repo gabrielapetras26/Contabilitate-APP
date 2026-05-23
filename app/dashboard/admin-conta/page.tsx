@@ -6,16 +6,37 @@ import { useRouter } from 'next/navigation'
 export default function DashboardAdminConta() {
   const router = useRouter()
   const [profil, setProfil] = useState<any>(null)
+  const [firmeContabilitate, setFirmeContabilitate] = useState<any[]>([])
   const [firmeCliente, setFirmeCliente] = useState<any[]>([])
   const [contabili, setContabili] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'firme' | 'contabili'>('firme')
+  const [tab, setTab] = useState<'firme_conta' | 'firme_cliente' | 'contabili'>('firme_conta')
+  const [mesaj, setMesaj] = useState('')
+  const [loadingActiune, setLoadingActiune] = useState(false)
+
+  // Adauga firma conta
+  const [showAdaugaFirmaConta, setShowAdaugaFirmaConta] = useState(false)
+  const [numeFirmaConta, setNumeFirmaConta] = useState('')
+  const [cuiFirmaConta, setCuiFirmaConta] = useState('')
+  const [emailFirmaConta, setEmailFirmaConta] = useState('')
+  const [telefonFirmaConta, setTelefonFirmaConta] = useState('')
+  const [documentCeccar, setDocumentCeccar] = useState<File | null>(null)
+  const [esteClient, setEsteClient] = useState(false)
+
+  // Adauga firma client
+  const [showAdaugaFirmaClient, setShowAdaugaFirmaClient] = useState(false)
+  const [cuiCautare, setCuiCautare] = useState('')
+  const [firmaGasita, setFirmaGasita] = useState<any>(null)
+  const [numeFirmaClient, setNumeFirmaClient] = useState('')
+  const [cuiFirmaClient, setCuiFirmaClient] = useState('')
+  const [emailFirmaClient, setEmailFirmaClient] = useState('')
+  const [telefonFirmaClient, setTelefonFirmaClient] = useState('')
+
+  // Adauga contabil
   const [showAdaugaContabil, setShowAdaugaContabil] = useState(false)
   const [numeContabil, setNumeContabil] = useState('')
   const [emailContabil, setEmailContabil] = useState('')
   const [parolaContabil, setParolaContabil] = useState('')
-  const [mesaj, setMesaj] = useState('')
-  const [loadingActiune, setLoadingActiune] = useState(false)
 
   useEffect(() => {
     verificaUser()
@@ -32,23 +53,200 @@ export default function DashboardAdminConta() {
       .single()
 
     setProfil(profilData)
-    await incarcaDate(profilData?.firma_contabilitate_id)
+    await incarcaDate(user.id)
     setLoading(false)
   }
 
-  async function incarcaDate(firmaContaId: string) {
-    const { data: firme } = await supabase
+  async function incarcaDate(userId: string) {
+    const { data: firmeConta } = await supabase
+      .from('firme_contabilitate')
+      .select('*')
+      .eq('admin_id', userId)
+    setFirmeContabilitate(firmeConta || [])
+
+    const { data: firmeC } = await supabase
       .from('firme_cliente')
-      .select('*, alocare_contabili(contabil_id, profiluri(nume))')
-      .eq('firma_contabilitate_id', firmaContaId)
-    setFirmeCliente(firme || [])
+      .select('*')
+      .eq('admin_conta_id', userId)
+    setFirmeCliente(firmeC || [])
 
     const { data: contabiliData } = await supabase
       .from('profiluri')
+      .select('*, utilizator_roluri(*)')
+      .eq('utilizator_roluri.rol', 'contabil')
+    
+    const contabiliFiltrati = contabiliData?.filter(u => 
+      u.utilizator_roluri?.some((r: any) => r.rol === 'contabil')
+    ) || []
+    setContabili(contabiliFiltrati)
+  }
+
+  async function adaugaFirmaConta() {
+    setLoadingActiune(true)
+    setMesaj('')
+
+    if (!numeFirmaConta || !cuiFirmaConta || !telefonFirmaConta) {
+      setMesaj('Completează toate câmpurile obligatorii.')
+      setLoadingActiune(false)
+      return
+    }
+
+    const { data: { user } } = await supabase.auth.getUser()
+
+    let documentUrl = ''
+    if (documentCeccar) {
+      const numeFisier = `ceccar/${user?.id}_${Date.now()}_${documentCeccar.name}`
+      const { error: uploadError } = await supabase.storage
+        .from('documente')
+        .upload(numeFisier, documentCeccar)
+      if (!uploadError) {
+        const { data: urlData } = supabase.storage
+          .from('documente')
+          .getPublicUrl(numeFisier)
+        documentUrl = urlData.publicUrl
+      }
+    }
+
+    const { data: firma, error } = await supabase
+      .from('firme_contabilitate')
+      .insert({
+        nume: numeFirmaConta,
+        cui: cuiFirmaConta,
+        email: emailFirmaConta,
+        telefon: telefonFirmaConta,
+        document_ceccar_url: documentUrl,
+        admin_id: user?.id,
+        verificat: false,
+        este_si_client: esteClient
+      })
+      .select()
+      .single()
+
+    if (error) {
+      setMesaj('Eroare la adăugarea firmei.')
+      setLoadingActiune(false)
+      return
+    }
+
+    // Daca firma e si client, cream si firma client
+    if (esteClient && firma) {
+      const { data: firmaClient } = await supabase
+        .from('firme_cliente')
+        .insert({
+          nume: numeFirmaConta,
+          cui: cuiFirmaConta,
+          email: emailFirmaConta,
+          telefon: telefonFirmaConta,
+          admin_id: user?.id,
+          admin_conta_id: user?.id,
+          mod_folosire: 'cu_firma_conta',
+          asociere_confirmata: true
+        })
+        .select()
+        .single()
+
+      if (firmaClient) {
+        await supabase
+          .from('firme_contabilitate')
+          .update({ firma_client_id: firmaClient.id })
+          .eq('id', firma.id)
+
+        await supabase.from('foldere').insert({
+          firma_client_id: firmaClient.id,
+          nume: 'Documente încărcate',
+          tip: 'upload',
+          creat_de: user?.id
+        })
+      }
+    }
+
+    setMesaj('Firmă adăugată cu succes!')
+    setNumeFirmaConta('')
+    setCuiFirmaConta('')
+    setEmailFirmaConta('')
+    setTelefonFirmaConta('')
+    setDocumentCeccar(null)
+    setEsteClient(false)
+    setShowAdaugaFirmaConta(false)
+    await incarcaDate(user?.id!)
+    setLoadingActiune(false)
+  }
+
+  async function cautaFirmaDupaCui() {
+    if (!cuiCautare) return
+    const { data } = await supabase
+      .from('firme_cliente')
       .select('*')
-      .eq('firma_contabilitate_id', firmaContaId)
-      .eq('rol', 'contabil')
-    setContabili(contabiliData || [])
+      .eq('cui', cuiCautare)
+      .single()
+    
+    if (data) {
+      setFirmaGasita(data)
+      setNumeFirmaClient(data.nume)
+      setCuiFirmaClient(data.cui)
+      setEmailFirmaClient(data.email || '')
+      setTelefonFirmaClient(data.telefon || '')
+    } else {
+      setFirmaGasita(null)
+      setMesaj('Firma nu e înregistrată încă. O poți adăuga manual.')
+    }
+  }
+
+  async function adaugaFirmaClient() {
+    setLoadingActiune(true)
+    setMesaj('')
+
+    if (!numeFirmaClient || !cuiFirmaClient) {
+      setMesaj('Denumirea și CUI-ul sunt obligatorii.')
+      setLoadingActiune(false)
+      return
+    }
+
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (firmaGasita) {
+      await supabase
+        .from('firme_cliente')
+        .update({
+          admin_conta_id: user?.id,
+          asociere_confirmata: true
+        })
+        .eq('id', firmaGasita.id)
+    } else {
+      const { data: firmaNoua } = await supabase
+        .from('firme_cliente')
+        .insert({
+          nume: numeFirmaClient,
+          cui: cuiFirmaClient,
+          email: emailFirmaClient,
+          telefon: telefonFirmaClient,
+          admin_conta_id: user?.id,
+          mod_folosire: 'cu_firma_conta',
+          asociere_confirmata: true
+        })
+        .select()
+        .single()
+
+      if (firmaNoua) {
+        await supabase.from('foldere').insert({
+          firma_client_id: firmaNoua.id,
+          nume: 'Documente încărcate',
+          tip: 'upload',
+          creat_de: user?.id
+        })
+      }
+    }
+
+    setMesaj('Firmă client adăugată cu succes!')
+    setCuiCautare('')
+    setFirmaGasita(null)
+    setNumeFirmaClient('')
+    setCuiFirmaClient('')
+    setEmailFirmaClient('')
+    setTelefonFirmaClient('')
+    setShowAdaugaFirmaClient(false)
+    await incarcaDate(user?.id!)
+    setLoadingActiune(false)
   }
 
   async function adaugaContabil() {
@@ -64,9 +262,7 @@ export default function DashboardAdminConta() {
     const { data, error } = await supabase.auth.signUp({
       email: emailContabil,
       password: parolaContabil,
-      options: {
-        data: { nume: numeContabil, rol: 'contabil' }
-      }
+      options: { data: { nume: numeContabil } }
     })
 
     if (error) {
@@ -79,9 +275,11 @@ export default function DashboardAdminConta() {
       await supabase.from('profiluri').insert({
         id: data.user.id,
         nume: numeContabil,
-        email: emailContabil,
-        rol: 'contabil',
-        firma_contabilitate_id: profil?.firma_contabilitate_id
+        email: emailContabil
+      })
+      await supabase.from('utilizator_roluri').insert({
+        utilizator_id: data.user.id,
+        rol: 'contabil'
       })
     }
 
@@ -90,7 +288,7 @@ export default function DashboardAdminConta() {
     setEmailContabil('')
     setParolaContabil('')
     setShowAdaugaContabil(false)
-    await incarcaDate(profil?.firma_contabilitate_id)
+    await incarcaDate(profil?.id)
     setLoadingActiune(false)
   }
 
@@ -122,34 +320,220 @@ export default function DashboardAdminConta() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
+        {mesaj && (
+          <div className={`p-3 rounded-xl mb-6 text-sm ${mesaj.includes('succes') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+            {mesaj}
+          </div>
+        )}
+
         {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          <button onClick={() => setTab('firme')}
-            className={`px-6 py-2 rounded-xl font-semibold text-sm transition ${
-              tab === 'firme' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-indigo-50'
-            }`}>
+        <div className="flex gap-2 mb-6 flex-wrap">
+          <button onClick={() => setTab('firme_conta')}
+            className={`px-6 py-2 rounded-xl font-semibold text-sm transition ${tab === 'firme_conta' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-indigo-50'}`}>
+            🏦 Firmele mele de contabilitate ({firmeContabilitate.length})
+          </button>
+          <button onClick={() => setTab('firme_cliente')}
+            className={`px-6 py-2 rounded-xl font-semibold text-sm transition ${tab === 'firme_cliente' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-indigo-50'}`}>
             🏢 Firme cliente ({firmeCliente.length})
           </button>
           <button onClick={() => setTab('contabili')}
-            className={`px-6 py-2 rounded-xl font-semibold text-sm transition ${
-              tab === 'contabili' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-indigo-50'
-            }`}>
+            className={`px-6 py-2 rounded-xl font-semibold text-sm transition ${tab === 'contabili' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-indigo-50'}`}>
             👤 Contabili ({contabili.length})
           </button>
         </div>
 
-        {/* Tab Firme */}
-        {tab === 'firme' && (
+        {/* Tab Firme Contabilitate */}
+        {tab === 'firme_conta' && (
           <div>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="font-bold text-gray-800">Firmele mele de contabilitate</h2>
+              <button onClick={() => setShowAdaugaFirmaConta(!showAdaugaFirmaConta)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition">
+                + Adaugă firmă contabilitate
+              </button>
+            </div>
+
+            {showAdaugaFirmaConta && (
+              <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
+                <h3 className="font-bold text-gray-800 mb-4">Adaugă firmă de contabilitate</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Denumire firmă *</label>
+                    <input value={numeFirmaConta} onChange={e => setNumeFirmaConta(e.target.value)}
+                      placeholder="SC Conta Expert SRL"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">CUI *</label>
+                    <input value={cuiFirmaConta} onChange={e => setCuiFirmaConta(e.target.value)}
+                      placeholder="RO12345678"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+                    <input value={emailFirmaConta} onChange={e => setEmailFirmaConta(e.target.value)}
+                      placeholder="office@conta.ro"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Telefon *</label>
+                    <input value={telefonFirmaConta} onChange={e => setTelefonFirmaConta(e.target.value)}
+                      placeholder="07xx xxx xxx"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Autorizație CECCAR</label>
+                    <label className="flex items-center gap-3 px-4 py-3 border-2 border-dashed border-indigo-300 rounded-xl cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition">
+                      <span className="text-xl">📎</span>
+                      <p className="font-semibold text-indigo-600 text-sm">
+                        {documentCeccar ? documentCeccar.name : 'Încarcă documentul CECCAR'}
+                      </p>
+                      <input type="file" accept=".pdf" className="hidden"
+                        onChange={e => setDocumentCeccar(e.target.files?.[0] || null)} />
+                    </label>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" checked={esteClient}
+                        onChange={e => setEsteClient(e.target.checked)}
+                        className="w-5 h-5 rounded accent-indigo-600" />
+                      <div>
+                        <p className="font-semibold text-gray-800 text-sm">Folosește și ca firmă client</p>
+                        <p className="text-xs text-gray-500">Firma ta de contabilitate va apărea și ca firmă client pentru gestionarea propriilor documente</p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-4">
+                  <button onClick={adaugaFirmaConta} disabled={loadingActiune}
+                    className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition disabled:opacity-50">
+                    {loadingActiune ? 'Se salvează...' : 'Salvează'}
+                  </button>
+                  <button onClick={() => setShowAdaugaFirmaConta(false)}
+                    className="px-6 py-2 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition">
+                    Anulează
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {firmeContabilitate.length === 0 ? (
+              <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+                <span className="text-5xl">🏦</span>
+                <p className="text-gray-500 mt-4">Nu ai adăugat nicio firmă de contabilitate.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {firmeContabilitate.map(firma => (
+                  <div key={firma.id} className="bg-white rounded-2xl shadow-sm p-6">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-bold text-gray-800">{firma.nume}</h3>
+                        {firma.cui && <p className="text-sm text-gray-500 mt-1">CUI: {firma.cui}</p>}
+                        {firma.email && <p className="text-sm text-gray-500">{firma.email}</p>}
+                        {firma.telefon && <p className="text-sm text-gray-500">{firma.telefon}</p>}
+                      </div>
+                      <div className="flex flex-col gap-1 items-end">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${firma.verificat ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {firma.verificat ? '✅ Verificat' : '⏳ În verificare'}
+                        </span>
+                        {firma.este_si_client && (
+                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
+                            👥 și Client
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab Firme Cliente */}
+        {tab === 'firme_cliente' && (
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="font-bold text-gray-800">Portofoliu firme cliente</h2>
+              <button onClick={() => setShowAdaugaFirmaClient(!showAdaugaFirmaClient)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition">
+                + Adaugă firmă client
+              </button>
+            </div>
+
+            {showAdaugaFirmaClient && (
+              <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
+                <h3 className="font-bold text-gray-800 mb-4">Adaugă firmă client</h3>
+                <p className="text-sm text-gray-500 mb-4">Caută firma după CUI — dacă e înregistrată pe platformă o găsești automat.</p>
+
+                <div className="flex gap-3 mb-4">
+                  <input value={cuiCautare} onChange={e => setCuiCautare(e.target.value)}
+                    placeholder="Caută după CUI..."
+                    className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500" />
+                  <button onClick={cautaFirmaDupaCui}
+                    className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition">
+                    Caută
+                  </button>
+                </div>
+
+                {firmaGasita && (
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4">
+                    <p className="text-green-700 font-semibold text-sm">✅ Firmă găsită: {firmaGasita.nume}</p>
+                    <p className="text-green-600 text-xs mt-1">CUI: {firmaGasita.cui}</p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Denumire firmă *</label>
+                    <input value={numeFirmaClient} onChange={e => setNumeFirmaClient(e.target.value)}
+                      placeholder="SC Exemplu SRL"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">CUI *</label>
+                    <input value={cuiFirmaClient} onChange={e => setCuiFirmaClient(e.target.value)}
+                      placeholder="RO12345678"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+                    <input value={emailFirmaClient} onChange={e => setEmailFirmaClient(e.target.value)}
+                      placeholder="office@firma.ro"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Telefon</label>
+                    <input value={telefonFirmaClient} onChange={e => setTelefonFirmaClient(e.target.value)}
+                      placeholder="07xx xxx xxx"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500" />
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-4">
+                  <button onClick={adaugaFirmaClient} disabled={loadingActiune}
+                    className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition disabled:opacity-50">
+                    {loadingActiune ? 'Se salvează...' : 'Adaugă în portofoliu'}
+                  </button>
+                  <button onClick={() => setShowAdaugaFirmaClient(false)}
+                    className="px-6 py-2 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition">
+                    Anulează
+                  </button>
+                </div>
+              </div>
+            )}
+
             {firmeCliente.length === 0 ? (
               <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
                 <span className="text-5xl">🏢</span>
-                <p className="text-gray-500 mt-4">Nu există firme cliente încă.</p>
+                <p className="text-gray-500 mt-4">Nu ai firme cliente în portofoliu.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {firmeCliente.map(firma => (
-                  <div key={firma.id} className="bg-white rounded-2xl shadow-sm p-6">
+                  <div key={firma.id}
+                    onClick={() => router.push(`/dashboard/contabil/${firma.id}`)}
+                    className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-md transition cursor-pointer">
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-bold text-gray-800">{firma.nume}</h3>
@@ -159,16 +543,7 @@ export default function DashboardAdminConta() {
                       <span className="text-2xl">🏢</span>
                     </div>
                     <div className="mt-4 pt-4 border-t border-gray-100">
-                      <p className="text-xs text-gray-400 mb-2">Contabili alocați:</p>
-                      {firma.alocare_contabili?.length > 0 ? (
-                        firma.alocare_contabili.map((a: any, i: number) => (
-                          <span key={i} className="inline-block px-2 py-1 bg-indigo-100 text-indigo-700 rounded-lg text-xs mr-1">
-                            {a.profiluri?.nume}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-xs text-gray-400">Niciun contabil alocat</span>
-                      )}
+                      <span className="text-sm text-indigo-600 font-semibold">Vezi documente →</span>
                     </div>
                   </div>
                 ))}
@@ -181,7 +556,7 @@ export default function DashboardAdminConta() {
         {tab === 'contabili' && (
           <div>
             <div className="flex justify-between items-center mb-4">
-              <h2 className="font-bold text-gray-800">Contabilii firmei</h2>
+              <h2 className="font-bold text-gray-800">Contabilii mei</h2>
               <button onClick={() => setShowAdaugaContabil(!showAdaugaContabil)}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition">
                 + Adaugă contabil
@@ -191,29 +566,23 @@ export default function DashboardAdminConta() {
             {showAdaugaContabil && (
               <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
                 <h3 className="font-bold text-gray-800 mb-4">Adaugă contabil nou</h3>
-                {mesaj && (
-                  <div className={`p-3 rounded-xl mb-4 text-sm ${mesaj.includes('succes') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                    {mesaj}
-                  </div>
-                )}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Nume complet</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Nume complet *</label>
                     <input value={numeContabil} onChange={e => setNumeContabil(e.target.value)}
                       placeholder="Ion Popescu"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500" />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Email *</label>
                     <input value={emailContabil} onChange={e => setEmailContabil(e.target.value)}
                       placeholder="contabil@firma.ro"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500" />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Parolă temporară</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Parolă temporară *</label>
                     <input value={parolaContabil} onChange={e => setParolaContabil(e.target.value)}
-                      type="password"
-                      placeholder="Minim 6 caractere"
+                      type="password" placeholder="Minim 6 caractere"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500" />
                   </div>
                 </div>
@@ -233,7 +602,7 @@ export default function DashboardAdminConta() {
             {contabili.length === 0 ? (
               <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
                 <span className="text-5xl">👤</span>
-                <p className="text-gray-500 mt-4">Nu ai adăugat niciun contabil încă.</p>
+                <p className="text-gray-500 mt-4">Nu ai adăugat niciun contabil.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
