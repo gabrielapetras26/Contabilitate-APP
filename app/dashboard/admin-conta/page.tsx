@@ -399,6 +399,10 @@ export default function DashboardAdminConta() {
             <h1 className="text-xl font-bold text-gray-800">Portal Contabilitate</h1>
             <p className="text-sm text-gray-500">Admin firmă contabilitate — {profil?.nume}</p>
           </div>
+          <button onClick={() => router.push('/profil')}
+  className="px-4 py-2 text-sm text-indigo-600 border border-indigo-200 rounded-xl hover:bg-indigo-50 transition">
+  👤 Profilul meu
+</button>
           <button onClick={logout}
             className="px-4 py-2 text-sm text-red-600 border border-red-200 rounded-xl hover:bg-red-50 transition">
             Ieși din cont
