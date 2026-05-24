@@ -56,7 +56,8 @@ export default function Login() {
     if (rol === 'admin_platforma') router.push('/dashboard/super-admin')
     else if (rol === 'admin_conta') router.push('/dashboard/admin-conta')
     else if (rol === 'contabil') router.push('/dashboard/contabil')
-    else router.push('/dashboard/firma')
+    else if (rol === 'angajat_firma_client') router.push('/dashboard/angajat')
+else router.push('/dashboard/firma')
   }
 
   function numeRol(rol: string) {
