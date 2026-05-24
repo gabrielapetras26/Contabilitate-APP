@@ -6,12 +6,12 @@ import { useRouter, useParams } from 'next/navigation'
 const LUNI = ['Ianuarie', 'Februarie', 'Martie', 'Aprilie', 'Mai', 'Iunie',
   'Iulie', 'August', 'Septembrie', 'Octombrie', 'Noiembrie', 'Decembrie']
 
-const TRIMESTRE: { [key: number]: number[] } = {
-  1: [0, 1, 2],
-  2: [3, 4, 5],
-  3: [6, 7, 8],
-  4: [9, 10, 11]
-}
+const JUDETE = ['Alba', 'Arad', 'Argeș', 'Bacău', 'Bihor', 'Bistrița-Năsăud', 'Botoșani',
+  'Brașov', 'Brăila', 'București', 'Buzău', 'Caraș-Severin', 'Călărași', 'Cluj',
+  'Constanța', 'Covasna', 'Dâmbovița', 'Dolj', 'Galați', 'Giurgiu', 'Gorj',
+  'Harghita', 'Hunedoara', 'Ialomița', 'Iași', 'Ilfov', 'Maramureș', 'Mehedinți',
+  'Mureș', 'Neamț', 'Olt', 'Prahova', 'Satu Mare', 'Sălaj', 'Sibiu', 'Suceava',
+  'Teleorman', 'Timiș', 'Tulcea', 'Vaslui', 'Vâlcea', 'Vrancea']
 
 function getTrimestru(luna: number): number {
   if (luna <= 2) return 1
@@ -24,122 +24,129 @@ function esteUltimaLunaTrimestru(luna: number): boolean {
   return [2, 5, 8, 11].includes(luna)
 }
 
-function genereazaDeclaratii(profil: any, luna: number, an: number) {
+function genereazaDeclaratiiDinProfil(profil: any, luna: number, an: number) {
   const declaratii: any[] = []
   const trimestru = getTrimestru(luna)
   const ultimaLunaTrimestru = esteUltimaLunaTrimestru(luna)
   const esteDecembrie = luna === 11
 
-  // D100 — Micro sau profit, trimestrial (T1-T4)
   if (profil.sistem_impozitare === 'micro' || profil.sistem_impozitare === 'profit') {
     if (ultimaLunaTrimestru) {
       declaratii.push({
         nume: 'D100',
-        descriere: `Impozit ${profil.sistem_impozitare === 'micro' ? 'microîntreprindere' : 'pe profit'} — Trimestrul ${trimestru}`,
-        frecventa: 'trimestrial',
-        trimestru,
-        termen_actual: 25,
-        generata_automat: true
+        descriere: `Impozit ${profil.sistem_impozitare === 'micro' ? 'microîntreprindere' : 'pe profit'} — T${trimestru}`,
+        frecventa: 'trimestrial', trimestru, termen_actual: 25, generata_automat: true
       })
     }
   }
 
-  // D101 — Impozit profit anual, doar T4
   if (profil.sistem_impozitare === 'profit' && esteDecembrie) {
     declaratii.push({
-      nume: 'D101',
-      descriere: 'Impozit pe profit anual',
-      frecventa: 'anual',
-      trimestru: 4,
-      termen_actual: 25,
-      generata_automat: true
+      nume: 'D101', descriere: 'Impozit pe profit anual',
+      frecventa: 'anual', trimestru: 4, termen_actual: 25, generata_automat: true
     })
   }
 
-  // D112 — Salariati, lunar
   if (profil.are_salariati) {
     declaratii.push({
-      nume: 'D112',
-      descriere: 'Declarație salarii și contribuții sociale',
-      frecventa: 'lunar',
-      termen_actual: 25,
-      generata_automat: true
+      nume: 'D112', descriere: 'Declarație salarii și contribuții sociale',
+      frecventa: 'lunar', termen_actual: 25, generata_automat: true
     })
   }
 
-  // D300 — Platitor TVA
   if (profil.tva === 'lunar') {
     declaratii.push({
-      nume: 'D300',
-      descriere: 'Decontul de TVA lunar',
-      frecventa: 'lunar',
-      termen_actual: 25,
-      generata_automat: true
+      nume: 'D300', descriere: 'Decontul de TVA lunar',
+      frecventa: 'lunar', termen_actual: 25, generata_automat: true
     })
-    // D394 corelat cu D300 lunar
     declaratii.push({
-      nume: 'D394',
-      descriere: 'Declarație informativă TVA lunar',
-      frecventa: 'lunar',
-      termen_actual: 25,
-      generata_automat: true
+      nume: 'D394', descriere: 'Declarație informativă TVA lunar',
+      frecventa: 'lunar', termen_actual: 25, generata_automat: true
     })
   }
 
   if (profil.tva === 'trimestrial' && ultimaLunaTrimestru) {
     declaratii.push({
-      nume: 'D300',
-      descriere: `Decontul de TVA — Trimestrul ${trimestru}`,
-      frecventa: 'trimestrial',
-      trimestru,
-      termen_actual: 25,
-      generata_automat: true
+      nume: 'D300', descriere: `Decontul de TVA — T${trimestru}`,
+      frecventa: 'trimestrial', trimestru, termen_actual: 25, generata_automat: true
     })
-    // D394 corelat cu D300 trimestrial
     declaratii.push({
-      nume: 'D394',
-      descriere: `Declarație informativă TVA — Trimestrul ${trimestru}`,
-      frecventa: 'trimestrial',
-      trimestru,
-      termen_actual: 25,
-      generata_automat: true
+      nume: 'D394', descriere: `Declarație informativă TVA — T${trimestru}`,
+      frecventa: 'trimestrial', trimestru, termen_actual: 25, generata_automat: true
     })
   }
 
-  // D301 — Neplatitor TVA + CIF intracomunitar + achizitii
   if (profil.tva === 'neplatitor' && profil.cif_intracomunitar && profil.achizitii_intracomunitare) {
     declaratii.push({
-      nume: 'D301',
-      descriere: 'Declarație achiziții intracomunitare — neplatitor TVA',
-      frecventa: 'lunar',
-      termen_actual: 25,
-      generata_automat: true
+      nume: 'D301', descriere: 'Declarație achiziții intracomunitare — neplatitor TVA',
+      frecventa: 'lunar', termen_actual: 25, generata_automat: true
     })
   }
 
-  // D390 — CIF intracomunitar + achizitii/vanzari intracomunitare
   if (profil.cif_intracomunitar && (profil.achizitii_intracomunitare || profil.vanzari_intracomunitare)) {
     declaratii.push({
-      nume: 'D390',
-      descriere: 'Declarație recapitulativă achiziții/vânzări intracomunitare',
-      frecventa: 'lunar',
-      termen_actual: 25,
-      generata_automat: true
+      nume: 'D390', descriere: 'Declarație recapitulativă achiziții/vânzări intracomunitare',
+      frecventa: 'lunar', termen_actual: 25, generata_automat: true
     })
   }
 
-  // Bilant anual — toate firmele, doar decembrie
   if (esteDecembrie) {
     declaratii.push({
-      nume: 'Bilanț anual',
-      descriere: 'Situații financiare anuale',
-      frecventa: 'anual',
-      termen_actual: 25,
-      generata_automat: true
+      nume: 'Bilanț anual', descriere: 'Situații financiare anuale',
+      frecventa: 'anual', termen_actual: 25, generata_automat: true
     })
   }
 
   return declaratii
+}
+
+function genereazaOpuriStatDinProfil(profil: any, luna: number, an: number) {
+  const opuri: any[] = []
+  const trimestru = getTrimestru(luna)
+  const ultimaLunaTrimestru = esteUltimaLunaTrimestru(luna)
+
+  if (profil.are_salariati) {
+    opuri.push({
+      nume: 'CAS angajator', descriere: 'Contribuție asigurări sociale angajator',
+      frecventa: 'lunar', necesar: true, generata_automat: true
+    })
+    opuri.push({
+      nume: 'CASS angajator', descriere: 'Contribuție asigurări sănătate angajator',
+      frecventa: 'lunar', necesar: true, generata_automat: true
+    })
+    opuri.push({
+      nume: 'CAM', descriere: 'Contribuție asiguratorie pentru muncă',
+      frecventa: 'lunar', necesar: true, generata_automat: true
+    })
+    opuri.push({
+      nume: 'Impozit salarii', descriere: 'Impozit pe venit din salarii',
+      frecventa: 'lunar', necesar: true, generata_automat: true
+    })
+  }
+
+  if (profil.tva === 'lunar') {
+    opuri.push({
+      nume: 'TVA de plată', descriere: 'TVA de plată lunar',
+      frecventa: 'lunar', necesar: true, generata_automat: true
+    })
+  }
+
+  if (profil.tva === 'trimestrial' && ultimaLunaTrimestru) {
+    opuri.push({
+      nume: 'TVA de plată', descriere: `TVA de plată — T${trimestru}`,
+      frecventa: 'trimestrial', trimestru, necesar: true, generata_automat: true
+    })
+  }
+
+  if (ultimaLunaTrimestru) {
+    opuri.push({
+      nume: profil.sistem_impozitare === 'micro' ? 'Impozit micro' : 'Impozit profit',
+      descriere: `Impozit ${profil.sistem_impozitare === 'micro' ? 'microîntreprindere' : 'pe profit'} — T${trimestru}`,
+      frecventa: 'trimestrial', trimestru, necesar: true, generata_automat: true
+    })
+  }
+
+  return opuri
 }
 
 export default function FirmaContabil() {
@@ -150,15 +157,16 @@ export default function FirmaContabil() {
   const [firma, setFirma] = useState<any>(null)
   const [profilFiscal, setProfilFiscal] = useState<any>(null)
   const [declaratii, setDeclaratii] = useState<any[]>([])
+  const [opuriStat, setOpuriStat] = useState<any[]>([])
   const [foldere, setFoldere] = useState<any[]>([])
   const [folderSelectat, setFolderSelectat] = useState<any>(null)
   const [documente, setDocumente] = useState<any[]>([])
+  const [opuri, setOpuri] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'documente' | 'declaratii' | 'profil_fiscal' | 'opuri'>('profil_fiscal')
+  const [tab, setTab] = useState<'profil_fiscal' | 'declaratii' | 'opuri_stat' | 'documente' | 'opuri'>('profil_fiscal')
   const [lunaSelectata, setLunaSelectata] = useState(new Date().getMonth())
   const [anSelectat, setAnSelectat] = useState(new Date().getFullYear())
   const [statusLucru, setStatusLucru] = useState<any>(null)
-  const [opuri, setOpuri] = useState<any[]>([])
   const [uploading, setUploading] = useState(false)
   const [mesaj, setMesaj] = useState('')
   const [userId, setUserId] = useState('')
@@ -172,6 +180,9 @@ export default function FirmaContabil() {
   const [cifIntracomunitar, setCifIntracomunitar] = useState(false)
   const [achizitiiIntracomunitare, setAchizitiiIntracomunitare] = useState(false)
   const [vanzariIntracomunitare, setVanzariIntracomunitare] = useState(false)
+  const [judet, setJudet] = useState('')
+  const [localitate, setLocalitate] = useState('')
+  const [adresa, setAdresa] = useState('')
 
   // Declaratii
   const [showAdaugaDeclaratie, setShowAdaugaDeclaratie] = useState(false)
@@ -180,18 +191,23 @@ export default function FirmaContabil() {
   const [termenDeclaratie, setTermenDeclaratie] = useState(25)
   const [justificareDeclaratie, setJustificareDeclaratie] = useState('')
 
-  // OP-uri
+  // OP-uri stat
+  const [showAdaugaOpStat, setShowAdaugaOpStat] = useState(false)
+  const [numeOpStat, setNumeOpStat] = useState('')
+  const [descriereOpStat, setDescriereOpStat] = useState('')
+  const [sumaOpStat, setSumaOpStat] = useState('')
+
+  // OP-uri documente
   const [showAdaugaOp, setShowAdaugaOp] = useState(false)
   const [sumaOp, setSumaOp] = useState('')
   const [descriereOp, setDescriereOp] = useState('')
 
-  useEffect(() => {
-    incarcaDate()
-  }, [])
+  useEffect(() => { incarcaDate() }, [])
 
   useEffect(() => {
     if (firma) {
       incarcaDeclaratii()
+      incarcaOpuriStat()
       incarcaStatusLucru()
     }
   }, [firma, lunaSelectata, anSelectat])
@@ -206,42 +222,33 @@ export default function FirmaContabil() {
     setUserId(user.id)
 
     const { data: firmaData } = await supabase
-      .from('firme_cliente')
-      .select('*')
-      .eq('id', firmaId)
-      .single()
+      .from('firme_cliente').select('*').eq('id', firmaId).single()
     setFirma(firmaData)
 
     const { data: profilData } = await supabase
-      .from('profil_fiscal')
-      .select('*')
-      .eq('firma_client_id', firmaId)
-      .single()
+      .from('profil_fiscal').select('*').eq('firma_client_id', firmaId).single()
 
     if (profilData) {
       setProfilFiscal(profilData)
-      setTipSocietate(profilData.tip_societate)
-      setSistemImpozitare(profilData.sistem_impozitare)
-      setAreSalariati(profilData.are_salariati)
-      setTva(profilData.tva)
-      setCifIntracomunitar(profilData.cif_intracomunitar)
-      setAchizitiiIntracomunitare(profilData.achizitii_intracomunitare)
-      setVanzariIntracomunitare(profilData.vanzari_intracomunitare)
+      setTipSocietate(profilData.tip_societate || 'srl')
+      setSistemImpozitare(profilData.sistem_impozitare || 'micro')
+      setAreSalariati(profilData.are_salariati || false)
+      setTva(profilData.tva || 'neplatitor')
+      setCifIntracomunitar(profilData.cif_intracomunitar || false)
+      setAchizitiiIntracomunitare(profilData.achizitii_intracomunitare || false)
+      setVanzariIntracomunitare(profilData.vanzari_intracomunitare || false)
+      setJudet(profilData.judet || '')
+      setLocalitate(profilData.localitate || '')
+      setAdresa(profilData.adresa || '')
     }
 
     const { data: foldereData } = await supabase
-      .from('foldere')
-      .select('*')
-      .eq('firma_client_id', firmaId)
-      .order('created_at', { ascending: true })
+      .from('foldere').select('*').eq('firma_client_id', firmaId).order('created_at', { ascending: true })
     setFoldere(foldereData || [])
     if (foldereData && foldereData.length > 0) setFolderSelectat(foldereData[0])
 
     const { data: opuriData } = await supabase
-      .from('opuri')
-      .select('*')
-      .eq('firma_client_id', firmaId)
-      .order('created_at', { ascending: false })
+      .from('opuri').select('*').eq('firma_client_id', firmaId).order('created_at', { ascending: false })
     setOpuri(opuriData || [])
 
     setLoading(false)
@@ -249,8 +256,7 @@ export default function FirmaContabil() {
 
   async function incarcaDeclaratii() {
     const { data } = await supabase
-      .from('declaratii')
-      .select('*')
+      .from('declaratii').select('*')
       .eq('firma_client_id', firmaId)
       .eq('luna', LUNI[lunaSelectata])
       .eq('an', anSelectat)
@@ -258,10 +264,19 @@ export default function FirmaContabil() {
     setDeclaratii(data || [])
   }
 
+  async function incarcaOpuriStat() {
+    const { data } = await supabase
+      .from('opuri_stat').select('*')
+      .eq('firma_client_id', firmaId)
+      .eq('luna', LUNI[lunaSelectata])
+      .eq('an', anSelectat)
+      .order('created_at', { ascending: true })
+    setOpuriStat(data || [])
+  }
+
   async function incarcaStatusLucru() {
     const { data } = await supabase
-      .from('status_lucru')
-      .select('*')
+      .from('status_lucru').select('*')
       .eq('firma_client_id', firmaId)
       .eq('luna', LUNI[lunaSelectata])
       .eq('an', anSelectat)
@@ -271,10 +286,7 @@ export default function FirmaContabil() {
 
   async function incarcaDocumente(folderId: string) {
     const { data } = await supabase
-      .from('documente')
-      .select('*')
-      .eq('folder_id', folderId)
-      .order('created_at', { ascending: false })
+      .from('documente').select('*').eq('folder_id', folderId).order('created_at', { ascending: false })
     setDocumente(data || [])
   }
 
@@ -284,47 +296,55 @@ export default function FirmaContabil() {
       tip_societate: tipSocietate,
       sistem_impozitare: sistemImpozitare,
       are_salariati: areSalariati,
-      tva,
-      cif_intracomunitar: cifIntracomunitar,
+      tva, cif_intracomunitar: cifIntracomunitar,
       achizitii_intracomunitare: achizitiiIntracomunitare,
       vanzari_intracomunitare: vanzariIntracomunitare,
+      judet, localitate, adresa,
       updated_at: new Date().toISOString()
     }
 
+    let profilSalvat
     if (profilFiscal) {
-      await supabase.from('profil_fiscal').update(profilNou).eq('id', profilFiscal.id)
+      const { data } = await supabase.from('profil_fiscal').update(profilNou).eq('id', profilFiscal.id).select().single()
+      profilSalvat = data
     } else {
-      await supabase.from('profil_fiscal').insert(profilNou)
+      const { data } = await supabase.from('profil_fiscal').insert(profilNou).select().single()
+      profilSalvat = data
     }
 
-    setMesaj('Profil fiscal salvat!')
-    setEditProfilFiscal(false)
-    await incarcaDate()
-  }
+    if (profilSalvat) {
+      // Genereaza automat declaratii pentru luna curenta
+      const declaratiiDeAdaugat = genereazaDeclaratiiDinProfil(profilSalvat, lunaSelectata, anSelectat)
+      for (const dec of declaratiiDeAdaugat) {
+        const { data: existing } = await supabase.from('declaratii').select('id')
+          .eq('firma_client_id', firmaId).eq('luna', LUNI[lunaSelectata]).eq('an', anSelectat).eq('nume', dec.nume).single()
+        if (!existing) {
+          await supabase.from('declaratii').insert({
+            ...dec, firma_client_id: firmaId,
+            luna: LUNI[lunaSelectata], an: anSelectat, depusa: false
+          })
+        }
+      }
 
-  async function genereazaDeclaratiiAutomat() {
-    if (!profilFiscal) {
-      setMesaj('Completează mai întâi profilul fiscal al firmei.')
-      return
-    }
-
-    const declaratiiDeAdaugat = genereazaDeclaratii(profilFiscal, lunaSelectata, anSelectat)
-
-    for (const dec of declaratiiDeAdaugat) {
-      const exista = declaratii.find(d => d.nume === dec.nume)
-      if (!exista) {
-        await supabase.from('declaratii').insert({
-          ...dec,
-          firma_client_id: firmaId,
-          luna: LUNI[lunaSelectata],
-          an: anSelectat,
-          depusa: false
-        })
+      // Genereaza automat OP-uri stat pentru luna curenta
+      const opuriDeAdaugat = genereazaOpuriStatDinProfil(profilSalvat, lunaSelectata, anSelectat)
+      for (const op of opuriDeAdaugat) {
+        const { data: existing } = await supabase.from('opuri_stat').select('id')
+          .eq('firma_client_id', firmaId).eq('luna', LUNI[lunaSelectata]).eq('an', anSelectat).eq('nume', op.nume).single()
+        if (!existing) {
+          await supabase.from('opuri_stat').insert({
+            ...op, firma_client_id: firmaId,
+            luna: LUNI[lunaSelectata], an: anSelectat
+          })
+        }
       }
     }
 
-    setMesaj('Declarații generate automat!')
+    setMesaj('Profil fiscal salvat! Declarații și OP-uri generate automat.')
+    setEditProfilFiscal(false)
+    await incarcaDate()
     await incarcaDeclaratii()
+    await incarcaOpuriStat()
   }
 
   async function toggleDeclaratie(id: string, depusa: boolean) {
@@ -336,62 +356,86 @@ export default function FirmaContabil() {
     await incarcaDeclaratii()
   }
 
-  async function adaugaDeclaratieManual() {
-    if (!numeDeclaratie) return
-
-    const termenModificat = termenDeclaratie !== 25
-    if (termenModificat && !justificareDeclaratie) {
-      setMesaj('Adaugă o justificare pentru modificarea termenului.')
-      return
-    }
-
-    await supabase.from('declaratii').insert({
-      firma_client_id: firmaId,
-      nume: numeDeclaratie,
-      descriere: descriereDeclaratie,
-      luna: LUNI[lunaSelectata],
-      an: anSelectat,
-      termen_actual: termenDeclaratie,
-      termen_standard: 25,
-      termen_modificat: termenModificat,
-      justificare_modificare: justificareDeclaratie,
-      generata_automat: false,
-      modificata: false,
-      depusa: false,
-      frecventa: 'lunar'
-    })
-
-    setNumeDeclaratie('')
-    setDescriereDeclaratie('')
-    setTermenDeclaratie(25)
-    setJustificareDeclaratie('')
-    setShowAdaugaDeclaratie(false)
-    await incarcaDeclaratii()
-  }
-
   async function stergeDeclaratie(id: string, generataAutomat: boolean) {
     if (generataAutomat) {
-      const justificare = prompt('Această declarație a fost generată automat. Adaugă o justificare pentru ștergere:')
+      const justificare = prompt('Declarație generată automat. Adaugă justificare pentru ștergere:')
       if (!justificare) return
     }
     await supabase.from('declaratii').delete().eq('id', id)
     await incarcaDeclaratii()
   }
 
+  async function adaugaDeclaratieManual() {
+    if (!numeDeclaratie) return
+    const termenModificat = termenDeclaratie !== 25
+    if (termenModificat && !justificareDeclaratie) {
+      setMesaj('Adaugă o justificare pentru modificarea termenului.')
+      return
+    }
+    await supabase.from('declaratii').insert({
+      firma_client_id: firmaId, nume: numeDeclaratie,
+      descriere: descriereDeclaratie, luna: LUNI[lunaSelectata], an: anSelectat,
+      termen_actual: termenDeclaratie, termen_standard: 25,
+      termen_modificat: termenModificat, justificare_modificare: justificareDeclaratie,
+      generata_automat: false, depusa: false, frecventa: 'lunar'
+    })
+    setNumeDeclaratie(''); setDescriereDeclaratie(''); setTermenDeclaratie(25)
+    setJustificareDeclaratie(''); setShowAdaugaDeclaratie(false)
+    await incarcaDeclaratii()
+  }
+
+  async function toggleOpStat(id: string, achitat: boolean) {
+    await supabase.from('opuri_stat').update({
+      achitat: !achitat,
+      achitat_de: !achitat ? userId : null,
+      achitat_la: !achitat ? new Date().toISOString() : null
+    }).eq('id', id)
+    await incarcaOpuriStat()
+  }
+
+  async function toggleNecesarOpStat(id: string, necesar: boolean) {
+    if (necesar) {
+      const motiv = prompt('Motiv pentru care OP-ul nu este necesar:')
+      if (!motiv) return
+      await supabase.from('opuri_stat').update({ necesar: false, motiv_nenecesar: motiv }).eq('id', id)
+    } else {
+      await supabase.from('opuri_stat').update({ necesar: true, motiv_nenecesar: null }).eq('id', id)
+    }
+    await incarcaOpuriStat()
+  }
+
+  async function adaugaOpStat() {
+    if (!numeOpStat) return
+    await supabase.from('opuri_stat').insert({
+      firma_client_id: firmaId, nume: numeOpStat,
+      descriere: descriereOpStat, suma: sumaOpStat,
+      luna: LUNI[lunaSelectata], an: anSelectat,
+      frecventa: 'lunar', necesar: true, generata_automat: false
+    })
+    setNumeOpStat(''); setDescriereOpStat(''); setSumaOpStat('')
+    setShowAdaugaOpStat(false)
+    await incarcaOpuriStat()
+  }
+
+  async function schimbaStatusLucru(status: string) {
+    if (statusLucru) {
+      await supabase.from('status_lucru').update({ status, updated_at: new Date().toISOString() }).eq('id', statusLucru.id)
+    } else {
+      await supabase.from('status_lucru').insert({
+        firma_client_id: firmaId, contabil_id: userId,
+        luna: LUNI[lunaSelectata], an: anSelectat, status
+      })
+    }
+    await incarcaStatusLucru()
+  }
+
   async function adaugaFolderLunar() {
     const numeLuna = `${LUNI[lunaSelectata]} ${anSelectat}`
     const exista = foldere.find(f => f.nume === numeLuna)
-    if (exista) {
-      setFolderSelectat(exista)
-      return
-    }
+    if (exista) { setFolderSelectat(exista); return }
     await supabase.from('foldere').insert({
-      firma_client_id: firmaId,
-      nume: numeLuna,
-      tip: 'lunar',
-      luna: LUNI[lunaSelectata],
-      an: anSelectat,
-      creat_de: userId
+      firma_client_id: firmaId, nume: numeLuna,
+      tip: 'lunar', luna: LUNI[lunaSelectata], an: anSelectat, creat_de: userId
     })
     await incarcaDate()
   }
@@ -405,13 +449,9 @@ export default function FirmaContabil() {
     if (!error) {
       const { data: { publicUrl } } = supabase.storage.from('documente').getPublicUrl(numeFisier)
       await supabase.from('documente').insert({
-        folder_id: folderSelectat.id,
-        firma_client_id: firmaId,
-        nume_fisier: file.name,
-        url_fisier: publicUrl,
-        tip: 'final',
-        status: 'finalizat',
-        uploaded_by: userId
+        folder_id: folderSelectat.id, firma_client_id: firmaId,
+        nume_fisier: file.name, url_fisier: publicUrl,
+        tip: 'final', status: 'finalizat', uploaded_by: userId
       })
       setMesaj('Document încărcat!')
       await incarcaDocumente(folderSelectat.id)
@@ -428,21 +468,6 @@ export default function FirmaContabil() {
     await incarcaDocumente(folderSelectat.id)
   }
 
-  async function schimbaStatusLucru(status: string) {
-    if (statusLucru) {
-      await supabase.from('status_lucru').update({ status, updated_at: new Date().toISOString() }).eq('id', statusLucru.id)
-    } else {
-      await supabase.from('status_lucru').insert({
-        firma_client_id: firmaId,
-        contabil_id: userId,
-        luna: LUNI[lunaSelectata],
-        an: anSelectat,
-        status
-      })
-    }
-    await incarcaStatusLucru()
-  }
-
   async function uploadOp(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -452,17 +477,11 @@ export default function FirmaContabil() {
     if (!error) {
       const { data: { publicUrl } } = supabase.storage.from('documente').getPublicUrl(numeFisier)
       await supabase.from('opuri').insert({
-        firma_client_id: firmaId,
-        nume_fisier: file.name,
-        url_fisier: publicUrl,
-        suma: sumaOp,
-        descriere: descriereOp,
-        uploaded_by: userId
+        firma_client_id: firmaId, nume_fisier: file.name,
+        url_fisier: publicUrl, suma: sumaOp, descriere: descriereOp, uploaded_by: userId
       })
       setMesaj('OP încărcat!')
-      setSumaOp('')
-      setDescriereOp('')
-      setShowAdaugaOp(false)
+      setSumaOp(''); setDescriereOp(''); setShowAdaugaOp(false)
       const { data } = await supabase.from('opuri').select('*').eq('firma_client_id', firmaId).order('created_at', { ascending: false })
       setOpuri(data || [])
     }
@@ -493,16 +512,15 @@ export default function FirmaContabil() {
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center flex-wrap gap-3">
           <div>
             <button onClick={() => router.back()}
-              className="text-indigo-600 text-sm hover:underline mb-1 block">
-              ← Înapoi
-            </button>
+              className="text-indigo-600 text-sm hover:underline mb-1 block">← Înapoi</button>
             <h1 className="text-xl font-bold text-gray-800">{firma?.nume}</h1>
             {firma?.cui && <p className="text-sm text-gray-500">CUI: {firma.cui}</p>}
+            {profilFiscal?.judet && <p className="text-xs text-gray-400">{profilFiscal.localitate}, {profilFiscal.judet}</p>}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${culoareStatus(statusLucru?.status || 'asteptare')}`}>
               {numeStatus(statusLucru?.status || 'asteptare')}
             </span>
@@ -529,47 +547,37 @@ export default function FirmaContabil() {
           <div className="bg-green-50 text-green-700 rounded-xl p-3 mb-4 text-sm">{mesaj}</div>
         )}
 
-        {/* Selector luna/an */}
         <div className="flex gap-3 mb-4">
           <select value={lunaSelectata} onChange={e => setLunaSelectata(Number(e.target.value))}
             className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
-            {LUNI.map((luna, index) => (
-              <option key={index} value={index}>{luna}</option>
-            ))}
+            {LUNI.map((luna, index) => <option key={index} value={index}>{luna}</option>)}
           </select>
           <select value={anSelectat} onChange={e => setAnSelectat(Number(e.target.value))}
             className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
-            {[2023, 2024, 2025, 2026].map(an => (
-              <option key={an} value={an}>{an}</option>
-            ))}
+            {[2023, 2024, 2025, 2026].map(an => <option key={an} value={an}>{an}</option>)}
           </select>
         </div>
 
-        {/* Tabs */}
         <div className="flex gap-2 mb-6 flex-wrap">
-          <button onClick={() => setTab('profil_fiscal')}
-            className={`px-4 py-2 rounded-xl font-semibold text-sm transition ${tab === 'profil_fiscal' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-indigo-50'}`}>
-            🏛️ Profil fiscal
-          </button>
-          <button onClick={() => setTab('declaratii')}
-            className={`px-4 py-2 rounded-xl font-semibold text-sm transition ${tab === 'declaratii' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-indigo-50'}`}>
-            📋 Declarații ({declaratii.length})
-          </button>
-          <button onClick={() => setTab('documente')}
-            className={`px-4 py-2 rounded-xl font-semibold text-sm transition ${tab === 'documente' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-indigo-50'}`}>
-            📄 Documente
-          </button>
-          <button onClick={() => setTab('opuri')}
-            className={`px-4 py-2 rounded-xl font-semibold text-sm transition ${tab === 'opuri' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-indigo-50'}`}>
-            💳 OP-uri ({opuri.length})
-          </button>
+          {[
+            { key: 'profil_fiscal', label: '🏛️ Profil fiscal' },
+            { key: 'declaratii', label: `📋 Declarații (${declaratii.length})` },
+            { key: 'opuri_stat', label: `💰 OP-uri stat (${opuriStat.length})` },
+            { key: 'documente', label: '📄 Documente' },
+            { key: 'opuri', label: `💳 OP-uri (${opuri.length})` },
+          ].map(t => (
+            <button key={t.key} onClick={() => setTab(t.key as any)}
+              className={`px-4 py-2 rounded-xl font-semibold text-sm transition ${tab === t.key ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-indigo-50'}`}>
+              {t.label}
+            </button>
+          ))}
         </div>
 
         {/* Tab Profil Fiscal */}
         {tab === 'profil_fiscal' && (
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="font-bold text-gray-800 text-lg">Profil fiscal — {firma?.nume}</h2>
+              <h2 className="font-bold text-gray-800 text-lg">Profil fiscal</h2>
               <button onClick={() => setEditProfilFiscal(!editProfilFiscal)}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition">
                 {editProfilFiscal ? 'Anulează' : profilFiscal ? '✏️ Modifică' : '+ Completează'}
@@ -578,39 +586,23 @@ export default function FirmaContabil() {
 
             {!editProfilFiscal && profilFiscal && (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-xs text-gray-500 mb-1">Tip societate</p>
-                  <p className="font-bold text-gray-800 uppercase">{profilFiscal.tip_societate}</p>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-xs text-gray-500 mb-1">Sistem impozitare</p>
-                  <p className="font-bold text-gray-800">
-                    {profilFiscal.sistem_impozitare === 'micro' ? 'Microîntreprindere' : 'Impozit pe profit'}
-                  </p>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-xs text-gray-500 mb-1">TVA</p>
-                  <p className="font-bold text-gray-800">
-                    {profilFiscal.tva === 'neplatitor' ? 'Neplatitor' :
-                     profilFiscal.tva === 'lunar' ? 'Platitor lunar' : 'Platitor trimestrial'}
-                  </p>
-                </div>
-                <div className={`rounded-xl p-4 ${profilFiscal.are_salariati ? 'bg-green-50' : 'bg-gray-50'}`}>
-                  <p className="text-xs text-gray-500 mb-1">Salariați</p>
-                  <p className="font-bold text-gray-800">{profilFiscal.are_salariati ? '✅ Da' : '❌ Nu'}</p>
-                </div>
-                <div className={`rounded-xl p-4 ${profilFiscal.cif_intracomunitar ? 'bg-green-50' : 'bg-gray-50'}`}>
-                  <p className="text-xs text-gray-500 mb-1">CIF intracomunitar</p>
-                  <p className="font-bold text-gray-800">{profilFiscal.cif_intracomunitar ? '✅ Da' : '❌ Nu'}</p>
-                </div>
-                <div className={`rounded-xl p-4 ${profilFiscal.achizitii_intracomunitare ? 'bg-green-50' : 'bg-gray-50'}`}>
-                  <p className="text-xs text-gray-500 mb-1">Achiziții intracomunitare</p>
-                  <p className="font-bold text-gray-800">{profilFiscal.achizitii_intracomunitare ? '✅ Da' : '❌ Nu'}</p>
-                </div>
-                <div className={`rounded-xl p-4 ${profilFiscal.vanzari_intracomunitare ? 'bg-green-50' : 'bg-gray-50'}`}>
-                  <p className="text-xs text-gray-500 mb-1">Vânzări intracomunitare</p>
-                  <p className="font-bold text-gray-800">{profilFiscal.vanzari_intracomunitare ? '✅ Da' : '❌ Nu'}</p>
-                </div>
+                {[
+                  { label: 'Tip societate', value: profilFiscal.tip_societate?.toUpperCase() },
+                  { label: 'Sistem impozitare', value: profilFiscal.sistem_impozitare === 'micro' ? 'Microîntreprindere' : 'Impozit pe profit' },
+                  { label: 'TVA', value: profilFiscal.tva === 'neplatitor' ? 'Neplatitor' : profilFiscal.tva === 'lunar' ? 'Platitor lunar' : 'Platitor trimestrial' },
+                  { label: 'Salariați', value: profilFiscal.are_salariati ? '✅ Da' : '❌ Nu' },
+                  { label: 'CIF intracomunitar', value: profilFiscal.cif_intracomunitar ? '✅ Da' : '❌ Nu' },
+                  { label: 'Achiziții intracomunitare', value: profilFiscal.achizitii_intracomunitare ? '✅ Da' : '❌ Nu' },
+                  { label: 'Vânzări intracomunitare', value: profilFiscal.vanzari_intracomunitare ? '✅ Da' : '❌ Nu' },
+                  { label: 'Județ', value: profilFiscal.judet || '-' },
+                  { label: 'Localitate', value: profilFiscal.localitate || '-' },
+                  { label: 'Adresă', value: profilFiscal.adresa || '-' },
+                ].map((item, i) => (
+                  <div key={i} className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs text-gray-500 mb-1">{item.label}</p>
+                    <p className="font-bold text-gray-800">{item.value}</p>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -618,13 +610,13 @@ export default function FirmaContabil() {
               <div className="text-center py-8">
                 <span className="text-5xl">🏛️</span>
                 <p className="text-gray-500 mt-4">Profilul fiscal nu a fost completat încă.</p>
-                <p className="text-gray-400 text-sm mt-1">Completează profilul pentru a genera automat declarațiile.</p>
+                <p className="text-gray-400 text-sm mt-1">Completează profilul pentru a genera automat declarațiile și OP-urile.</p>
               </div>
             )}
 
             {editProfilFiscal && (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Tip societate</label>
                     <select value={tipSocietate} onChange={e => setTipSocietate(e.target.value)}
@@ -653,38 +645,58 @@ export default function FirmaContabil() {
                       <option value="trimestrial">Platitor trimestrial</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Județ</label>
+                    <select value={judet} onChange={e => setJudet(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500">
+                      <option value="">Selectează județul...</option>
+                      {JUDETE.map(j => <option key={j} value={j}>{j}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Localitate</label>
+                    <input value={localitate} onChange={e => setLocalitate(e.target.value)}
+                      placeholder="Ex: Cluj-Napoca"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Adresă</label>
+                    <input value={adresa} onChange={e => setAdresa(e.target.value)}
+                      placeholder="Str. Exemplu nr. 1"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-500" />
+                  </div>
                 </div>
 
                 <div className="space-y-3">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" checked={areSalariati} onChange={e => setAreSalariati(e.target.checked)}
-                      className="w-5 h-5 rounded accent-indigo-600" />
-                    <span className="font-semibold text-gray-800">Are salariați</span>
-                  </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" checked={cifIntracomunitar} onChange={e => setCifIntracomunitar(e.target.checked)}
-                      className="w-5 h-5 rounded accent-indigo-600" />
-                    <span className="font-semibold text-gray-800">Are CIF intracomunitar</span>
-                  </label>
+                  {[
+                    { val: areSalariati, set: setAreSalariati, label: 'Are salariați' },
+                    { val: cifIntracomunitar, set: setCifIntracomunitar, label: 'Are CIF intracomunitar' },
+                  ].map((item, i) => (
+                    <label key={i} className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" checked={item.val} onChange={e => item.set(e.target.checked)}
+                        className="w-5 h-5 rounded accent-indigo-600" />
+                      <span className="font-semibold text-gray-800">{item.label}</span>
+                    </label>
+                  ))}
                   {cifIntracomunitar && (
-                    <>
-                      <label className="flex items-center gap-3 cursor-pointer ml-8">
-                        <input type="checkbox" checked={achizitiiIntracomunitare} onChange={e => setAchizitiiIntracomunitare(e.target.checked)}
-                          className="w-5 h-5 rounded accent-indigo-600" />
-                        <span className="font-semibold text-gray-800">Achiziții intracomunitare</span>
-                      </label>
-                      <label className="flex items-center gap-3 cursor-pointer ml-8">
-                        <input type="checkbox" checked={vanzariIntracomunitare} onChange={e => setVanzariIntracomunitare(e.target.checked)}
-                          className="w-5 h-5 rounded accent-indigo-600" />
-                        <span className="font-semibold text-gray-800">Vânzări intracomunitare</span>
-                      </label>
-                    </>
+                    <div className="ml-8 space-y-3">
+                      {[
+                        { val: achizitiiIntracomunitare, set: setAchizitiiIntracomunitare, label: 'Achiziții intracomunitare' },
+                        { val: vanzariIntracomunitare, set: setVanzariIntracomunitare, label: 'Vânzări intracomunitare' },
+                      ].map((item, i) => (
+                        <label key={i} className="flex items-center gap-3 cursor-pointer">
+                          <input type="checkbox" checked={item.val} onChange={e => item.set(e.target.checked)}
+                            className="w-5 h-5 rounded accent-indigo-600" />
+                          <span className="font-semibold text-gray-800">{item.label}</span>
+                        </label>
+                      ))}
+                    </div>
                   )}
                 </div>
 
                 <button onClick={salveazaProfilFiscal}
                   className="w-full py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition">
-                  Salvează profilul fiscal
+                  Salvează profilul fiscal + generează declarații și OP-uri automat
                 </button>
               </div>
             )}
@@ -695,19 +707,11 @@ export default function FirmaContabil() {
         {tab === 'declaratii' && (
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
-              <h3 className="font-bold text-gray-800">
-                Declarații {LUNI[lunaSelectata]} {anSelectat}
-              </h3>
-              <div className="flex gap-2">
-                <button onClick={genereazaDeclaratiiAutomat}
-                  className="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 transition">
-                  ⚡ Generează automat
-                </button>
-                <button onClick={() => setShowAdaugaDeclaratie(!showAdaugaDeclaratie)}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition">
-                  + Adaugă manual
-                </button>
-              </div>
+              <h3 className="font-bold text-gray-800">Declarații {LUNI[lunaSelectata]} {anSelectat}</h3>
+              <button onClick={() => setShowAdaugaDeclaratie(!showAdaugaDeclaratie)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition">
+                + Adaugă manual
+              </button>
             </div>
 
             {showAdaugaDeclaratie && (
@@ -716,28 +720,24 @@ export default function FirmaContabil() {
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Tip declarație *</label>
                     <input value={numeDeclaratie} onChange={e => setNumeDeclaratie(e.target.value)}
-                      placeholder="Ex: D300, D394, D112"
+                      placeholder="Ex: D700"
                       className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Descriere</label>
                     <input value={descriereDeclaratie} onChange={e => setDescriereDeclaratie(e.target.value)}
-                      placeholder="Ex: Declaratie TVA"
+                      placeholder="Descriere declarație"
                       className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">
-                      Termen (standard: 25)
-                    </label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Termen (standard: 25)</label>
                     <input type="number" value={termenDeclaratie} onChange={e => setTermenDeclaratie(Number(e.target.value))}
                       min={1} max={31}
                       className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500" />
                   </div>
                   {termenDeclaratie !== 25 && (
                     <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Justificare modificare termen *
-                      </label>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Justificare modificare termen *</label>
                       <input value={justificareDeclaratie} onChange={e => setJustificareDeclaratie(e.target.value)}
                         placeholder="Motiv modificare termen..."
                         className="w-full px-3 py-2 border border-red-200 rounded-xl text-sm focus:outline-none focus:border-red-500" />
@@ -761,7 +761,7 @@ export default function FirmaContabil() {
               <div className="text-center py-8">
                 <span className="text-4xl">📋</span>
                 <p className="text-gray-400 mt-3 text-sm">Nu există declarații pentru această perioadă.</p>
-                <p className="text-gray-400 text-xs mt-1">Apasă "Generează automat" sau adaugă manual.</p>
+                <p className="text-gray-400 text-xs mt-1">Completează profilul fiscal pentru a genera automat.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -792,15 +792,11 @@ export default function FirmaContabil() {
                           <div className="flex items-center gap-1">
                             <span className="text-sm font-semibold text-gray-800">{dec.termen_actual || 25}</span>
                             {dec.termen_modificat && (
-                              <span className="px-1.5 py-0.5 bg-amber-100 text-amber-600 rounded text-xs" title={dec.justificare_modificare}>
-                                ⚠️ modificat
-                              </span>
+                              <span className="px-1.5 py-0.5 bg-amber-100 text-amber-600 rounded text-xs" title={dec.justificare_modificare}>⚠️</span>
                             )}
                           </div>
                         </td>
-                        <td className="py-3 px-4">
-                          <span className="text-xs text-gray-500 capitalize">{dec.frecventa}</span>
-                        </td>
+                        <td className="py-3 px-4 text-xs text-gray-500 capitalize">{dec.frecventa}</td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${dec.depusa ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                             {dec.depusa ? '✅ Depusă' : '⏳ Nedepusă'}
@@ -810,11 +806,126 @@ export default function FirmaContabil() {
                           <div className="flex gap-2">
                             <button onClick={() => toggleDeclaratie(dec.id, dec.depusa)}
                               className={`px-3 py-1 rounded-full text-xs font-semibold transition ${dec.depusa ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}>
-                              {dec.depusa ? 'Anulează' : 'Marchează depusă'}
+                              {dec.depusa ? 'Anulează' : 'Depusă'}
                             </button>
                             <button onClick={() => stergeDeclaratie(dec.id, dec.generata_automat)}
                               className="px-3 py-1 rounded-full text-xs bg-red-50 text-red-600 hover:bg-red-100 transition">
                               Șterge
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab OP-uri Stat */}
+        {tab === 'opuri_stat' && (
+          <div className="bg-white rounded-2xl shadow-sm p-6">
+            <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+              <h3 className="font-bold text-gray-800">OP-uri către stat {LUNI[lunaSelectata]} {anSelectat}</h3>
+              <button onClick={() => setShowAdaugaOpStat(!showAdaugaOpStat)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition">
+                + Adaugă manual
+              </button>
+            </div>
+
+            {showAdaugaOpStat && (
+              <div className="bg-gray-50 rounded-xl p-4 mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Tip OP *</label>
+                    <input value={numeOpStat} onChange={e => setNumeOpStat(e.target.value)}
+                      placeholder="Ex: Impozit clădire"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Descriere</label>
+                    <input value={descriereOpStat} onChange={e => setDescriereOpStat(e.target.value)}
+                      placeholder="Descriere"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Sumă</label>
+                    <input value={sumaOpStat} onChange={e => setSumaOpStat(e.target.value)}
+                      placeholder="Ex: 1500 RON"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500" />
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <button onClick={adaugaOpStat}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition">
+                    Salvează
+                  </button>
+                  <button onClick={() => setShowAdaugaOpStat(false)}
+                    className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50 transition">
+                    Anulează
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {opuriStat.length === 0 ? (
+              <div className="text-center py-8">
+                <span className="text-4xl">💰</span>
+                <p className="text-gray-400 mt-3 text-sm">Nu există OP-uri pentru această perioadă.</p>
+                <p className="text-gray-400 text-xs mt-1">Completează profilul fiscal pentru a genera automat.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="text-left py-3 px-4 text-xs font-bold text-gray-500 uppercase">Tip</th>
+                      <th className="text-left py-3 px-4 text-xs font-bold text-gray-500 uppercase">Descriere</th>
+                      <th className="text-left py-3 px-4 text-xs font-bold text-gray-500 uppercase">Sumă</th>
+                      <th className="text-left py-3 px-4 text-xs font-bold text-gray-500 uppercase">Necesar</th>
+                      <th className="text-left py-3 px-4 text-xs font-bold text-gray-500 uppercase">Status</th>
+                      <th className="text-left py-3 px-4 text-xs font-bold text-gray-500 uppercase">Acțiuni</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {opuriStat.map(op => (
+                      <tr key={op.id} className={`border-b border-gray-50 ${!op.necesar ? 'opacity-50' : op.achitat ? 'bg-green-50' : ''}`}>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-gray-800">{op.nume}</span>
+                            {op.generata_automat && (
+                              <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-600 rounded text-xs">auto</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-600">{op.descriere}</td>
+                        <td className="py-3 px-4 text-sm font-semibold text-gray-800">{op.suma || '-'}</td>
+                        <td className="py-3 px-4">
+                          {op.necesar ? (
+                            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">✅ Necesar</span>
+                          ) : (
+                            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500" title={op.motiv_nenecesar}>❌ Nu e necesar</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          {op.necesar && (
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${op.achitat ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                              {op.achitat ? '✅ Achitat' : '⏳ Neachitat'}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex gap-2 flex-wrap">
+                            {op.necesar && (
+                              <button onClick={() => toggleOpStat(op.id, op.achitat)}
+                                className={`px-3 py-1 rounded-full text-xs font-semibold transition ${op.achitat ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}>
+                                {op.achitat ? 'Anulează' : 'Achitat'}
+                              </button>
+                            )}
+                            <button onClick={() => toggleNecesarOpStat(op.id, op.necesar)}
+                              className={`px-3 py-1 rounded-full text-xs font-semibold transition ${op.necesar ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}>
+                              {op.necesar ? 'Nu e necesar' : 'E necesar'}
                             </button>
                           </div>
                         </td>
@@ -833,18 +944,12 @@ export default function FirmaContabil() {
             <div className="w-44 shrink-0">
               <div className="flex justify-between items-center mb-2">
                 <p className="text-xs font-bold text-gray-500 uppercase">Foldere</p>
-                <button onClick={adaugaFolderLunar}
-                  className="text-xs text-indigo-600 hover:underline">+ Lunar</button>
+                <button onClick={adaugaFolderLunar} className="text-xs text-indigo-600 hover:underline">+ Lunar</button>
               </div>
               <div className="space-y-1">
                 {foldere.map(folder => (
-                  <button key={folder.id}
-                    onClick={() => setFolderSelectat(folder)}
-                    className={`w-full text-left px-3 py-2 rounded-xl transition text-xs ${
-                      folderSelectat?.id === folder.id
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-white text-gray-800 hover:bg-indigo-50'
-                    }`}>
+                  <button key={folder.id} onClick={() => setFolderSelectat(folder)}
+                    className={`w-full text-left px-3 py-2 rounded-xl transition text-xs ${folderSelectat?.id === folder.id ? 'bg-indigo-600 text-white' : 'bg-white text-gray-800 hover:bg-indigo-50'}`}>
                     <span className="mr-1">{folder.tip === 'upload' ? '📤' : '📁'}</span>
                     {folder.nume}
                   </button>
@@ -859,15 +964,12 @@ export default function FirmaContabil() {
                     <label className="flex items-center gap-3 px-6 py-4 border-2 border-dashed border-indigo-300 rounded-xl cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition mb-4">
                       <span className="text-2xl">📎</span>
                       <div>
-                        <p className="font-semibold text-indigo-600 text-sm">
-                          {uploading ? 'Se încarcă...' : 'Încarcă document final'}
-                        </p>
+                        <p className="font-semibold text-indigo-600 text-sm">{uploading ? 'Se încarcă...' : 'Încarcă document final'}</p>
                         <p className="text-xs text-gray-400">PDF, Excel acceptate</p>
                       </div>
                       <input type="file" className="hidden" onChange={uploadDocumentFinal} disabled={uploading} />
                     </label>
                   )}
-
                   {documente.length === 0 ? (
                     <div className="bg-white rounded-2xl shadow-sm p-8 text-center">
                       <span className="text-4xl">📭</span>
@@ -882,23 +984,12 @@ export default function FirmaContabil() {
                             <div>
                               <div className="flex items-center gap-2">
                                 <p className="font-semibold text-gray-800 text-sm">{doc.nume_fisier}</p>
-                                {doc.status === 'nou' && (
-                                  <span className="px-2 py-0.5 bg-amber-400 text-white rounded-full text-xs font-bold">NOU</span>
-                                )}
+                                {doc.status === 'nou' && <span className="px-2 py-0.5 bg-amber-400 text-white rounded-full text-xs font-bold">NOU</span>}
                               </div>
                               <p className="text-xs text-gray-400">{new Date(doc.created_at).toLocaleDateString('ro-RO')}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              doc.status === 'gata' || doc.status === 'nou' ? 'bg-green-100 text-green-700' :
-                              doc.status === 'finalizat' ? 'bg-blue-100 text-blue-700' :
-                              'bg-gray-100 text-gray-600'
-                            }`}>
-                              {doc.status === 'gata' ? '✅ Gata' :
-                               doc.status === 'nou' ? '🆕 Nou' :
-                               doc.status === 'finalizat' ? '✔️ Final' : '📤 Încărcat'}
-                            </span>
                             <a href={doc.url_fisier} target="_blank" rel="noopener noreferrer"
                               className="px-3 py-1 text-xs text-indigo-600 border border-indigo-200 rounded-full hover:bg-indigo-50 transition">
                               Descarcă
@@ -920,7 +1011,7 @@ export default function FirmaContabil() {
           </div>
         )}
 
-        {/* Tab OP-uri */}
+        {/* Tab OP-uri documente */}
         {tab === 'opuri' && (
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <div className="flex justify-between items-center mb-4">
@@ -930,7 +1021,6 @@ export default function FirmaContabil() {
                 + Adaugă OP
               </button>
             </div>
-
             {showAdaugaOp && (
               <div className="bg-gray-50 rounded-xl p-4 mb-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
@@ -949,14 +1039,11 @@ export default function FirmaContabil() {
                 </div>
                 <label className="flex items-center gap-3 px-4 py-3 border-2 border-dashed border-indigo-300 rounded-xl cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition">
                   <span className="text-xl">📎</span>
-                  <p className="font-semibold text-indigo-600 text-sm">
-                    {uploading ? 'Se încarcă...' : 'Selectează fișierul OP'}
-                  </p>
+                  <p className="font-semibold text-indigo-600 text-sm">{uploading ? 'Se încarcă...' : 'Selectează fișierul OP'}</p>
                   <input type="file" className="hidden" onChange={uploadOp} disabled={uploading} />
                 </label>
               </div>
             )}
-
             {opuri.length === 0 ? (
               <div className="text-center py-8">
                 <span className="text-4xl">💳</span>
